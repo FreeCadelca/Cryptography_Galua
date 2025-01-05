@@ -139,11 +139,12 @@ class GaluaItem:
                         GaluaItem(self.p, self.n, [BigDegrees[new_degree][0]])
                     )
                     for indexInAddPoly in range(len(multedPoly)):
-                        BigDegrees[new_degree][len(BigDegrees[new_degree]) - 1 - indexInAddPoly] += multedPoly[len(multedPoly) - 1 - indexInAddPoly]
+                        BigDegrees[new_degree][len(BigDegrees[new_degree]) - 1 - indexInAddPoly] += multedPoly[
+                            len(multedPoly) - 1 - indexInAddPoly]
                     BigDegrees[new_degree][0].value = 0
                     BigDegrees[new_degree] = trimListWithZeros(BigDegrees[new_degree])
-            for key, item in BigDegrees.items():
-                print(f'x^{key}:', *item)
+            # for key, item in BigDegrees.items():
+            #     print(f'x^{key}:', *item)
             return BigDegrees
 
         bigDegreesDict = __get_big_degrees__(irreducible)
@@ -161,23 +162,22 @@ class GaluaItem:
                 pre_res[len(pre_res) - 1 - indexInAddPoly] += multedPoly[len(multedPoly) - 1 - indexInAddPoly]
             pre_res[i].value = 0
         pre_res = trimListWithZeros(pre_res)
-        print(*pre_res)
-
         return GaluaItem(self.p, self.n, pre_res)
 
 
 class GaluaField:
-    def __init__(self, p, n):
+    def __init__(self, p, n, irreducible):
         self.p = p
         self.n = n
+        self.irreducible = irreducible
 
-    def display(self):
+    def find_elements(self):
         def rec(pos=self.n - 1) -> list:
-            # делаем "простые элементы", состоящие из одного компонента - последнего (0, 1, 2, 3, 4, ... (p-1))
+            # Делаем "простые элементы", состоящие из одного компонента - последнего (0, 1, 2, 3, 4, ... (p-1))
             simple_values = [[j] for j in range(self.p)]
 
             # если это последняя позиция (самая последняя компонента), то возвращаем список простых элементов поля
-            if pos < 0:
+            if pos <= 0:
                 return simple_values
 
             # иначе рекурсивно прибавляем к простым элементам следующие такие же списки
@@ -190,41 +190,72 @@ class GaluaField:
         # запускаем рекурсию и записываем результат в items
         items = rec()
 
+        items_galua = [GaluaItem(self.p, self.n, create_intm_list(item, self.p)) for item in items]
+        return items_galua
+
+    def display(self):
+        items = self.find_elements()
+
         # собираем форматированную строку для вывода
         s = ""
         for item in items:
             # флаг, обозначающий, вывелся ли первый ненулевой элемент, чтобы знать, когда выводить " + "
             fl = 0
-            for i in range(len(item)):
-                if item[i] != 0:
+            for i in range(len(item.coefficients)):
+                if item.coefficients[i].value != 0:
                     if fl == 0:
                         fl = 1
                     else:
                         s += ' + '
-                    if self.n - i == 0:
-                        s += f'{item[i]}'
-                    elif self.n - i == 1:
-                        s += f'{item[i]}x'
+                    if self.n - i - 1 == 0:
+                        s += f'{item.coefficients[i].value}'
+                    elif self.n - i - 1 == 1:
+                        s += f'{item.coefficients[i].value}x'
                     else:
-                        s += f'{item[i]}x{self.n - i}'
+                        s += f'{item.coefficients[i].value}x{self.n - i - 1}'
             if fl == 0:
                 s += '0'
             s += ';\n'
         print(s)
 
+    def find_orders(self):
+        items = self.find_elements()
+        items = items[1:]
+        orders = dict()
+        for item in items:
+            current_order = 1
+            temp_res = item.copy()
+            temp_res.coefficients = trimListWithZeros(temp_res.coefficients)
+            while len(temp_res.coefficients) != 1 or temp_res.coefficients[0].value != 1:
+                temp_res = temp_res.multiply(item, self.irreducible)
+                current_order += 1
+            orders[item] = current_order
+        return orders
+
+    def find_forming_elements(self):
+        orders = self.find_orders()
+        forming_elements = []
+        for item in orders.keys():
+            if orders[item] == self.p ** self.n - 1:
+                forming_elements.append(item)
+        return forming_elements
+
+    def decompose_by_forming_element(self, forming: GaluaItem):
+        temp_res = forming.copy()
+        print(*temp_res.coefficients)
+        while len(temp_res.coefficients) != 1 or temp_res.coefficients[0].value != 1:
+            temp_res = temp_res.multiply(forming, self.irreducible)
+            print(*temp_res.coefficients)
 
 
-# Пример неприводимого многочлена x^3 + x + 1
-irreducible = create_intm_list([1, 1, 0, 1], 2)
-
-# Пример элементов поля
-a = GaluaItem(2, 3, create_intm_list([1, 1, 1], 2))
-b = GaluaItem(2, 3, create_intm_list([1, 0, 0], 2))
-
-# Умножение элементов
-result = a.multiply(b, irreducible)
-
-# Вывод результата
-print("Результат умножения:")
-for coef in result.coefficients:
-    print(coef)
+# Пример неприводимого многочлена x^4 + x^3 + 1
+irreducible = create_intm_list([1, 1, 0, 0, 1], 2)
+gf = GaluaField(2, 4, irreducible)
+orders = gf.find_orders()
+for i in orders.keys():
+    print(*i.coefficients, " - ", orders[i])
+fe = gf.find_forming_elements()
+for i in fe:
+    print(*i.coefficients)
+print()
+gf.decompose_by_forming_element(fe[2])
