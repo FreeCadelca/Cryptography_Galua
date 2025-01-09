@@ -1,6 +1,3 @@
-import pprint
-
-
 class IntM:
     def __init__(self, v: int, m: int):
         self.modulus = m
@@ -98,6 +95,13 @@ class GaluaItem:
         newGaluaItem = self.copy()
         for i in range(min(len(newGaluaItem.coefficients), len(other.coefficients))):
             newGaluaItem.coefficients[i] += other.coefficients[i]
+        return newGaluaItem
+
+    def __sub__(self, other):
+        newGaluaItem = self.copy()
+        for i in range(min(len(newGaluaItem.coefficients), len(other.coefficients))):
+            newGaluaItem.coefficients[i] -= other.coefficients[i]
+        return newGaluaItem
 
     # перемножение многочленов методом фонтанчика
     def fontain(self, other):
@@ -163,6 +167,14 @@ class GaluaItem:
             pre_res[i].value = 0
         pre_res = trimListWithZeros(pre_res)
         return GaluaItem(self.p, self.n, pre_res)
+
+    def inv(self, irreducible):
+        temp_res = self.copy()
+        temp_res.coefficients = trimListWithZeros(temp_res.coefficients)
+        while (len(temp_res.multiply(self, irreducible).coefficients) != 1 or
+               temp_res.multiply(self, irreducible).coefficients[0].value != 1):
+            temp_res = temp_res.multiply(self, irreducible)
+        return temp_res
 
 
 class GaluaField:
@@ -247,15 +259,21 @@ class GaluaField:
             temp_res = temp_res.multiply(forming, self.irreducible)
             print(*temp_res.coefficients)
 
-
-# Пример неприводимого многочлена x^4 + x^3 + 1
-irreducible = create_intm_list([1, 1, 0, 0, 1], 2)
-gf = GaluaField(2, 4, irreducible)
-orders = gf.find_orders()
-for i in orders.keys():
-    print(*i.coefficients, " - ", orders[i])
-fe = gf.find_forming_elements()
-for i in fe:
-    print(*i.coefficients)
-print()
-gf.decompose_by_forming_element(fe[2])
+# # Пример неприводимого многочлена x^4 + x^3 + 1
+# irreducible = create_intm_list([1, 1, 0, 0, 1], 2)
+# gf = GaluaField(2, 4, irreducible)
+# # orders = gf.find_orders()
+# # for i in orders.keys():
+# #     print(*i.coefficients, " - ", orders[i])
+# # fe = gf.find_forming_elements()
+# # for i in fe:
+# #     print(*i.coefficients)
+# # print()
+# # gf.decompose_by_forming_element(fe[2])
+#
+# a = GaluaItem(gf.p, gf.n, create_intm_list([1, 0, 1, 1], gf.p))  # 11
+# b = GaluaItem(gf.p, gf.n, create_intm_list([0, 1, 0, 1], gf.p))  # 5
+# print(*b.inv(gf.irreducible).coefficients)
+# c = b.multiply(b.inv(gf.irreducible), gf.irreducible)
+# # c = a.multiply(b, gf.irreducible)
+# print(*c.coefficients)
