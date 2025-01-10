@@ -66,10 +66,7 @@ class AffineCypher:
             if len(x_galuas[-1].coefficients) < self.__n:
                 diff = self.__n - len(x_galuas[-1].coefficients)
                 x_galuas[-1].coefficients = create_intm_list([0] * diff, self.__p) + x_galuas[-1].coefficients
-        try:
-            x = nums_to_text(galuas_to_nums(x_galuas, self.__p, self.__n), self.__p, self.__n)
-        except Exception:
-            exit(0)
+        x = nums_to_text(galuas_to_nums(x_galuas, self.__p, self.__n), self.__p, self.__n)
         return x
 
     def info(self):

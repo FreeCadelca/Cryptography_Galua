@@ -39,12 +39,12 @@ class IntM:
                 raise ValueError
             v = self.value
             while v % other.value != 0:
-                v += self.value
+                v += self.modulus
             return IntM(v // other.value, self.modulus)
         elif isinstance(other, int):
             v = self.value
             while v % other != 0:
-                v += self.value
+                v += self.modulus
             return IntM(v // other, self.modulus)
         else:
             raise ValueError
@@ -52,12 +52,53 @@ class IntM:
     def __gt__(self, other):
         if isinstance(other, IntM):
             if self.modulus != other.modulus:
-                raise ValueError
+                raise ValueError("The modules must match.")
             return self.value > other.value
         elif isinstance(other, int):
             return self.value > other
         else:
             raise ValueError
+
+    def __lt__(self, other):
+        if isinstance(other, IntM):
+            if self.modulus != other.modulus:
+                raise ValueError("The modules must match.")
+            return self.value < other.value
+        elif isinstance(other, int):
+            return self.value < other
+        else:
+            raise ValueError
+
+    def __ge__(self, other):
+        if isinstance(other, IntM):
+            if self.modulus != other.modulus:
+                raise ValueError("The modules must match.")
+            return self.value >= other.value
+        elif isinstance(other, int):
+            return self.value >= other
+        else:
+            raise ValueError
+
+    def __le__(self, other):
+        if isinstance(other, IntM):
+            if self.modulus != other.modulus:
+                raise ValueError("The modules must match.")
+            return self.value <= other.value
+        elif isinstance(other, int):
+            return self.value <= other
+        else:
+            raise ValueError
+
+    def __eq__(self, other):
+        if isinstance(other, IntM):
+            return self.modulus == other.modulus and self.value == other.value
+        elif isinstance(other, int):
+            return self.value == other
+        else:
+            raise ValueError
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
 
     def __str__(self):
         return f'{self.value}m{self.modulus}'
@@ -119,7 +160,7 @@ class GaluaItem:
 
     # def __get_big_degrees__(irreducible, max_pow):
 
-    def multiply(self, other, irreducible):
+    def multiply(self, other, irreducible: list[IntM]):
         def __get_big_degrees__(irreducible) -> dict:
             BigDegrees = dict()
             # выражаем наибольшую степень из неприводимого многочлена
@@ -175,6 +216,101 @@ class GaluaItem:
                temp_res.multiply(self, irreducible).coefficients[0].value != 1):
             temp_res = temp_res.multiply(self, irreducible)
         return temp_res
+
+    def division(self, other, irreducible):
+        return self.multiply(other.inv(irreducible), irreducible)
+
+    def divmod(self, other):
+        dividend = self.coefficients.copy()
+        divisor = other.coefficients.copy()
+        divisor = trimListWithZeros(divisor)
+
+        result_degree = len(dividend) - len(divisor)  # Степень результата
+        if result_degree < 0:
+            return GaluaItem(self.p, self.n, [IntM(0, self.p)]), self
+        result = [IntM(0, self.p) for _ in range(result_degree + 1)]
+
+        # Деление методом старших коэффициентов
+        while len(dividend) >= len(divisor):
+            lead_coeff_dividend = dividend[0]
+            lead_coeff_divisor = divisor[0]
+            lead_term = lead_coeff_dividend // lead_coeff_divisor  # Делим старшие коэффициенты
+            result[len(dividend) - len(divisor)] = lead_term
+
+            for i in range(len(divisor)):
+                dividend[i] -= divisor[i] * lead_term
+            dividend = trimListWithZeros(dividend)
+
+        result = result[::-1]
+        result = trimListWithZeros(result)
+
+        # Возвращаем частное и остаток
+        return GaluaItem(self.p, self.n, result), GaluaItem(self.p, self.n, dividend)
+
+    def __eq__(self, other):
+        if self.n != other.n or self.p != other.p:
+            return False
+        if len(self.coefficients) != len(other.coefficients):
+            return False
+        for i in range(len(other.coefficients)):
+            if self.coefficients[i] != other.coefficients[i]:
+                return False
+        return True
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def __ge__(self, other):
+        self.coefficients = trimListWithZeros(self.coefficients)
+        other.coefficients = trimListWithZeros(other.coefficients)
+        if len(self.coefficients) > len(other.coefficients):
+            return True
+        elif len(self.coefficients) < len(other.coefficients):
+            return False
+        else:
+            for i in range(len(self.coefficients)):
+                if self.coefficients[i] == other.coefficients[i]:
+                    continue
+                else:
+                    return self.coefficients[i] > other.coefficients[i]
+        return True
+
+    def degree(self):
+        return len(trimListWithZeros(self.coefficients)) - 1
+
+
+def find_irreducible(p: int, n: int, count: int = 1) -> list[list[IntM]]:
+    def rec(pos=n) -> list:
+        simple_values = [[j] for j in range(p)]
+
+        if pos <= 0:
+            return simple_values
+
+        new_values = []
+        for i in range(len(simple_values)):
+            for adjacent in rec(pos=pos - 1):
+                new_values.append(simple_values[i] + adjacent)
+        return new_values
+
+    items = rec()
+    items_galua = [GaluaItem(p, n, create_intm_list(item, p)) for item in items]
+    potential_irreducibles = [i for i in items_galua if i.coefficients[0] != 0]
+    irreducibles = []
+
+    for potential_irreducible in potential_irreducibles:
+        is_irreducible = True
+        for i in items_galua:
+            if i >= potential_irreducible or i.degree() == 0 or i.degree() == potential_irreducible.degree():
+                continue
+            c, ost = potential_irreducible.divmod(i)
+            if len(ost.coefficients) == 1 and ost.coefficients[0].value == 0:
+                is_irreducible = False
+                break
+        if is_irreducible:
+            irreducibles.append(potential_irreducible.coefficients)
+            if len(irreducibles) == count:
+                return irreducibles
+    return irreducibles
 
 
 class GaluaField:
@@ -259,9 +395,10 @@ class GaluaField:
             temp_res = temp_res.multiply(forming, self.irreducible)
             print(*temp_res.coefficients)
 
+
 # # Пример неприводимого многочлена x^4 + x^3 + 1
 # irreducible = create_intm_list([1, 1, 0, 0, 1], 2)
-# gf = GaluaField(2, 4, irreducible)
+# gf = GaluaField(4, 4, irreducible)
 # # orders = gf.find_orders()
 # # for i in orders.keys():
 # #     print(*i.coefficients, " - ", orders[i])
@@ -271,9 +408,50 @@ class GaluaField:
 # # print()
 # # gf.decompose_by_forming_element(fe[2])
 #
-# a = GaluaItem(gf.p, gf.n, create_intm_list([1, 0, 1, 1], gf.p))  # 11
-# b = GaluaItem(gf.p, gf.n, create_intm_list([0, 1, 0, 1], gf.p))  # 5
-# print(*b.inv(gf.irreducible).coefficients)
-# c = b.multiply(b.inv(gf.irreducible), gf.irreducible)
-# # c = a.multiply(b, gf.irreducible)
-# print(*c.coefficients)
+# a = GaluaItem(gf.p, gf.n, create_intm_list([3, 2, 0, 1], gf.p))
+# b = GaluaItem(gf.p, gf.n, create_intm_list([0, 1, 0, 1], gf.p))
+# c, ost = a.divmod(b)
+# print("Частное:", *c.coefficients)  # Ожидаемое частное
+# print("Остаток:", *ost.coefficients)  # Ожидаемый остаток
+
+# irreducible = create_intm_list([1, 1, 0, 0, 1], 2)
+# gf = GaluaField(4, 4, irreducible)
+# a = GaluaItem(gf.p, gf.n, create_intm_list([3, 2, 0, 1], gf.p))
+# b = GaluaItem(gf.p, gf.n, create_intm_list([0, 1, 0, 1], gf.p))
+# c, ost = a.divmod(b)
+# print("Частное:", *c.coefficients)  # Ожидаемое частное
+# print("Остаток:", *ost.coefficients)  # Ожидаемый остаток
+#
+# irreducible = create_intm_list([1, 0, 0, 1, 1], 2)  # x^4 + x + 1
+# gf = GaluaField(2, 4, irreducible)
+# a = GaluaItem(gf.p, gf.n, create_intm_list([3, 1, 2, 1, 0, 1, 1], gf.p))  # 3x^6 + x^5 + 2x^4 + x^3 + x + 1
+# b = GaluaItem(gf.p, gf.n, create_intm_list([1, 0, 1, 1], gf.p))  # x^3 + x + 1
+# c, ost = a.divmod(b)
+# print("Частное:", *c.coefficients)  # Ожидаемое частное
+# print("Остаток:", *ost.coefficients)  # Ожидаемый остаток
+#
+# irreducible = create_intm_list([1, 0, 2, 1], 3)  # x^3 + 2x + 1
+# gf = GaluaField(3, 3, irreducible)
+# a = GaluaItem(gf.p, gf.n, create_intm_list([2, 1, 1, 0, 2, 2], gf.p))  # 2x^5 + x^4 + x^3 + 2x + 2
+# b = GaluaItem(gf.p, gf.n, create_intm_list([1, 2, 1], gf.p))  # x^2 + 2x + 1
+# c, ost = a.divmod(b)
+# print("Частное:", *c.coefficients)  # Ожидаемое частное
+# print("Остаток:", *ost.coefficients)  # Ожидаемый остаток
+#
+# irreducible = create_intm_list([1, 0, 1, 3], 7)  # x^3 + x + 3
+# gf = GaluaField(7, 3, irreducible)
+# a = GaluaItem(gf.p, gf.n, create_intm_list([6, 3, 1, 1, 0, 5, 2], gf.p))  # 6x^6 + 3x^5 + x^4 + x^3 + 5x + 2
+# b = GaluaItem(gf.p, gf.n, create_intm_list([1, 4, 6], gf.p))  # x^2 + 4x + 6
+# c, ost = a.divmod(b)
+# print("Частное:", *c.coefficients)  # Ожидаемое частное
+# print("Остаток:", *ost.coefficients)  # Ожидаемый остаток
+
+
+# p, n = 3, 4
+# a = GaluaItem(p, n, create_intm_list([2, 0, 0, 2, 1], p))  # x^4 + 1
+# b = GaluaItem(p, n, create_intm_list([1, 0, 0, 1, 2], p))  # x
+# c, ost = a.divmod(b)
+# print("Частное:", *c.coefficients)  # Ожидаемое частное
+# print("Остаток:", *ost.coefficients)  # Ожидаемый остаток
+for i in find_irreducible(3, 4, count=10000):
+    print(*i)
