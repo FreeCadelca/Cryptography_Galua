@@ -3,4 +3,4 @@ A = {i: ALPHABET[i] for i in range(len(ALPHABET))}
 A_ID = {A[i]: i for i in A.keys()}
 m = len(ALPHABET)  # 125 символов = 5^3
 
-print(A, len(A))
+# print(A, len(A))

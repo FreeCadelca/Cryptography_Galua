@@ -97,6 +97,33 @@ class AffineCypher:
         print(f'keys: ({self.__key_alpha}, {self.__key_beta})')
 
 
+p, n = map(int, input("Введите p и n для поля:\n").split())
+irr = []
+choose = int(input("Введёте неприводимый многочлен[0] или сгенерировать[1]?\n"))
+if choose == 0:
+    print("Вводите многочлен в виде abcde..., "
+          "где a - коэффициент при старшем члене, b - при втором по старшинству и т.д.\n")
+    irr = create_intm_list([int(i) for i in input()], p)
+else:
+    irr = find_irreducible(p, n, 1)[0]
+    print("Сгенерированный неприводимый многочлен:", *irr)
+gf = GaluaField(p, n, irr)
+print("Введите ключи alpha и beta для шифра:")
+alpha = GaluaItem(gf.p, gf.n, create_intm_list([int(i) for i in input()], p))
+beta = GaluaItem(gf.p, gf.n, create_intm_list([int(i) for i in input()], p))
+cypher = AffineCypher(alpha, beta, gf.p, gf.n, gf.irreducible)
+while True:
+    mode = input("Введите операцию (E/D - Encrypt/Decrypt)\n")
+    print("Введите строку для зашифрования/расшифрования:")
+    text = input()
+    if mode == "E":
+        print(cypher.encrypt(text))
+    elif mode == "D":
+        print(cypher.decrypt(text))
+    elif mode == "exit":
+        break
+
+
 # p = 5
 # n = 3
 # alpha = GaluaItem(p, n, create_intm_list([4, 2, 1], p))
@@ -110,16 +137,16 @@ class AffineCypher:
 # new_text = cipher.decrypt(cipher_text)
 # print(new_text)
 
-p = 11
-n = 2
-alpha = GaluaItem(p, n, create_intm_list([10, 7], p))
-beta = GaluaItem(p, n, create_intm_list([5, 2], p))
-irreducible = find_irreducible(p, n)[0]
-cipher = AffineCypher(alpha, beta, p, n, irreducible)
-text = 'Mother is most important person'
-print(text)
-cipher_text = cipher.encrypt(text)
-print(cipher_text)
-new_text = cipher.decrypt(cipher_text)
-print(new_text)
+# p = 11
+# n = 2
+# alpha = GaluaItem(p, n, create_intm_list([10, 7], p))
+# beta = GaluaItem(p, n, create_intm_list([5, 2], p))
+# irreducible = find_irreducible(p, n)[0]
+# cipher = AffineCypher(alpha, beta, p, n, irreducible)
+# text = 'Mother is most important person'
+# print(text)
+# cipher_text = cipher.encrypt(text)
+# print(cipher_text)
+# new_text = cipher.decrypt(cipher_text)
+# print(new_text)
 
