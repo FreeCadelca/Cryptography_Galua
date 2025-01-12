@@ -254,6 +254,9 @@ class GaluaItem:
         # Возвращаем частное и остаток
         return GaluaItem(self.p, self.n, result), GaluaItem(self.p, self.n, dividend)
 
+    def __hash__(self):
+        return hash(f'{self.p}{self.n}{''.join(str(i.value) for i in self.coefficients)}')
+
     def __eq__(self, other):
         if self.n != other.n or self.p != other.p:
             return False
@@ -460,5 +463,5 @@ class GaluaField:
 # c, ost = a.divmod(b)
 # print("Частное:", *c.coefficients)  # Ожидаемое частное
 # print("Остаток:", *ost.coefficients)  # Ожидаемый остаток
-for i in find_irreducible(3, 4, count=10000):
-    print(*i)
+# for i in find_irreducible(3, 4, count=10000):
+#     print(*i)
