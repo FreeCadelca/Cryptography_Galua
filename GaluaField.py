@@ -133,9 +133,16 @@ class GaluaItem:
         return self.n + 1
 
     def __add__(self, other):
-        newGaluaItem = self.copy()
-        for i in range(min(len(newGaluaItem.coefficients), len(other.coefficients))):
-            newGaluaItem.coefficients[i] += other.coefficients[i]
+        if len(self.coefficients) >= len(other.coefficients):
+            newGaluaItem = self.copy()
+            for i in range(len(other.coefficients)):
+                newGaluaItem.coefficients[len(newGaluaItem.coefficients) - 1 - i] += \
+                    (other.coefficients)[len(other.coefficients) - 1 - i]
+        else:
+            newGaluaItem = other.copy()
+            for i in range(len(self.coefficients)):
+                newGaluaItem.coefficients[len(newGaluaItem.coefficients) - 1 - i] += (
+                    self.coefficients)[len(self.coefficients) - 1 - i]
         return newGaluaItem
 
     def __sub__(self, other):

@@ -1,35 +1,51 @@
-from AlphabetConfig100 import *
+from AlphabetConfig121 import *
 from GaluaField import *
 
 
-def from_10_to_n(number: str, n: int):
+def from_10_to_n(number: str, n: int) -> list[int]:
     number = int(number)
-    res = ''
+    res = []
     while number > 0:
-        res += str(number % n)
+        res.append(number % n)
         number //= n
     res = res[::-1]
     return res
 
 
-def from_n_to_10(number: str, n: int):
-    return sum([int(number[i]) * n ** (len(number) - 1 - i) for i in range(len(number))])
+def from_n_to_10(number: list[IntM], n: int) -> int:
+    return sum([number[i].value * n ** (len(number) - 1 - i) for i in range(len(number))])
 
 
-def text_to_nums(s: str, p: int, n: int):
-    return ''.join(f'{from_10_to_n(A_ID[i], p):0>{n}}' for i in s)
+# def text_to_nums(s: str, p: int, n: int):
+#     return ''.join(f'{from_10_to_n(A_ID[i], p):0>{n}}' for i in s)
+
+def text_to_galuas(s: str, p: int, n: int):
+    arr = []
+    for i in s:
+        i_p = from_10_to_n(A_ID[i], p)
+        new_coefs = [c for c in i_p]
+        arr.append(GaluaItem(p, n, create_intm_list(new_coefs, p)))
+    return arr
 
 
-def nums_to_galuas(s: str, p: int, n: int):
-    return [GaluaItem(p, n, create_intm_list([int(j) for j in s[i:i + n]], p)) for i in range(0, len(s), n)]
+# def nums_to_galuas(s: str, p: int, n: int):
+#     return [GaluaItem(p, n, create_intm_list([int(j) for j in s[i:i + n]], p)) for i in range(0, len(s), n)]
 
 
-def galuas_to_nums(galua_items: list, p: int, n: int):
-    return ''.join(''.join(f'{coef.value}' for coef in galua_item.coefficients) for galua_item in galua_items)
+# def galuas_to_nums(galua_items: list[GaluaItem], p: int, n: int):
+#     return ''.join(''.join(f'{coef.value}' for coef in galua_item.coefficients) for galua_item in galua_items)
 
 
-def nums_to_text(s: str, p: int, n: int):
-    return ''.join(A[int(from_n_to_10(s[i:i + n], p))] for i in range(0, len(s), n))
+def galuas_to_text(galua_items: list[GaluaItem], p: int, n: int):
+    text = ''
+    for item in galua_items:
+        new_num = from_n_to_10(item.coefficients, p)
+        text += A[new_num]
+    return text
+
+
+# def nums_to_text(s: str, p: int, n: int):
+#     return ''.join(A[int(from_n_to_10(s[i:i + n], p))] for i in range(0, len(s), n))
 
 
 # s = '!%$a'
@@ -49,35 +65,56 @@ class AffineCypher:
         self.__irreducible = irreducible
 
     def encrypt(self, x):
-        x_galuas = nums_to_galuas(text_to_nums(x, self.__p, self.__n), self.__p, self.__n)
+        x_galuas = text_to_galuas(x, self.__p, self.__n)
         y_galuas = []
         for galua_item_x in x_galuas:
-            y_galuas.append(galua_item_x.multiply(self.__key_alpha, self.__irreducible) + self.__key_beta)
-        y = nums_to_text(galuas_to_nums(y_galuas, self.__p, self.__n), self.__p, self.__n)
+            new_item_1 = galua_item_x.multiply(self.__key_alpha, self.__irreducible)
+            new_item = new_item_1 + self.__key_beta
+
+            if len(new_item.coefficients) != x_galuas[0].n:
+                new_item.coefficients = [IntM(0, x_galuas[0].p) for _ in range(x_galuas[0].n - len(new_item.coefficients))] + new_item.coefficients
+            y_galuas.append(new_item)
+        y = galuas_to_text(y_galuas, self.__p, self.__n)
         return y
 
     def decrypt(self, y):
-        y_galuas = nums_to_galuas(text_to_nums(y, self.__p, self.__n), self.__p, self.__n)
+        y_galuas = text_to_galuas(y, self.__p, self.__n)
         x_galuas = []
         for galua_item_y in y_galuas:
+            if len(galua_item_y.coefficients) < self.__n:
+                diff = self.__n - len(galua_item_y.coefficients)
+                galua_item_y.coefficients = create_intm_list([0] * diff, self.__p) + galua_item_y.coefficients
             x_galuas.append((galua_item_y - self.__key_beta).multiply(
                 self.__key_alpha.inv(self.__irreducible), self.__irreducible)
             )
             if len(x_galuas[-1].coefficients) < self.__n:
                 diff = self.__n - len(x_galuas[-1].coefficients)
                 x_galuas[-1].coefficients = create_intm_list([0] * diff, self.__p) + x_galuas[-1].coefficients
-        x = nums_to_text(galuas_to_nums(x_galuas, self.__p, self.__n), self.__p, self.__n)
+        x = galuas_to_text(x_galuas, self.__p, self.__n)
         return x
 
     def info(self):
         print(f'keys: ({self.__key_alpha}, {self.__key_beta})')
 
 
-p = 10
+# p = 5
+# n = 3
+# alpha = GaluaItem(p, n, create_intm_list([4, 2, 1], p))
+# beta = GaluaItem(p, n, create_intm_list([1, 3, 0], p))
+# irreducible = find_irreducible(p, n)[0]
+# cipher = AffineCypher(alpha, beta, p, n, irreducible)
+# text = 'Mother is most important person'
+# print(text)
+# cipher_text = cipher.encrypt(text)
+# print(cipher_text)
+# new_text = cipher.decrypt(cipher_text)
+# print(new_text)
+
+p = 11
 n = 2
-alpha = GaluaItem(p, n, create_intm_list([5, 2], p))
-beta = GaluaItem(p, n, create_intm_list([1, 9], p))
-irreducible = create_intm_list([1, 0, 1], p)
+alpha = GaluaItem(p, n, create_intm_list([10, 7], p))
+beta = GaluaItem(p, n, create_intm_list([5, 2], p))
+irreducible = find_irreducible(p, n)[0]
 cipher = AffineCypher(alpha, beta, p, n, irreducible)
 text = 'Mother is most important person'
 print(text)
@@ -85,3 +122,4 @@ cipher_text = cipher.encrypt(text)
 print(cipher_text)
 new_text = cipher.decrypt(cipher_text)
 print(new_text)
+
